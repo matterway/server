@@ -3,24 +3,23 @@ import assert from 'assert';
 import { Server as WebSocketServer } from 'ws';
 import WebSocket from 'ws';
 import net from 'net';
-
-import createServer from './server';
+import {createServers} from './server';
 
 describe('Server', () => {
     it('server starts and stops', async () => {
-        const server = createServer();
+        const {appServer: server} = createServers();
         await new Promise(resolve => server.listen(resolve));
         await new Promise(resolve => server.close(resolve));
     });
 
     it('should redirect root requests to landing page', async () => {
-        const server = createServer();
+        const {appServer: server} = createServers();
         const res = await request(server).get('/');
         assert.equal('https://localtunnel.github.io/www/', res.headers.location);
     });
 
     it('should support custom base domains', async () => {
-        const server = createServer({
+        const {appServer: server} = createServers({
             domain: 'domain.example.com',
         });
 
@@ -29,14 +28,14 @@ describe('Server', () => {
     });
 
     it('reject long domain name requests', async () => {
-        const server = createServer();
+        const {appServer: server} = createServers();
         const res = await request(server).get('/thisdomainisoutsidethesizeofwhatweallowwhichissixtythreecharacters');
         assert.equal(res.body.message, 'Invalid subdomain. Subdomains must be lowercase and between 4 and 63 alphanumeric characters.');
     });
 
     it('should upgrade websocket requests', async () => {
         const hostname = 'websocket-test';
-        const server = createServer({
+        const {appServer: server} = createServers({
             domain: 'example.com',
         });
         await new Promise(resolve => server.listen(resolve));
@@ -84,7 +83,7 @@ describe('Server', () => {
     });
 
     it('should support the /api/tunnels/:id/status endpoint', async () => {
-        const server = createServer();
+        const {appServer: server} = createServers();
         await new Promise(resolve => server.listen(resolve));
 
         // no such tunnel yet
