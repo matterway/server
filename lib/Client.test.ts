@@ -1,31 +1,33 @@
-import assert from 'assert';
-import http from 'http';
-import { Duplex } from 'stream';
-import net from 'net';
+import {expect, it, describe} from '@jest/globals';
+import * as http from 'http';
+import {Duplex, DuplexOptions} from 'stream';
+import {Socket, AddressInfo, createConnection} from 'net';
 import {Client} from './Client';
+import {EventEmitter} from 'events';
+import {TunnelAgent} from './TunnelAgent';
 
 class DummySocket extends Duplex {
-    constructor(options) {
-        super(options);
-    }
-
-    _write(chunk, encoding, callback) {
+    _write(_chunk: Buffer, _encoding: string, callback: () => void) {
         callback();
     }
-
-    _read(size) {
+    _read(_size?: number) {
         this.push('HTTP/1.1 304 Not Modified\r\nX-Powered-By: dummy\r\n\r\n\r\n');
         this.push(null);
     }
 }
-
+class DummyAgent extends http.Agent {
+    readonly events = new EventEmitter();
+    createConnection({}, callback: Function) {
+        callback(null, new DummySocket());
+    }
+}
 class DummyWebsocket extends Duplex {
-    constructor(options) {
+    readonly sentHeader;
+    constructor(options: DuplexOptions) {
         super(options);
         this.sentHeader = false;
     }
-
-    _write(chunk, encoding, callback) {
+    _write(chunk: Buffer, _encoding: string, callback: () => void) {
         const str = chunk.toString();
         // if chunk contains `GET / HTTP/1.1` -> queue headers
         // otherwise echo back received data
@@ -43,86 +45,59 @@ class DummyWebsocket extends Duplex {
         }
         callback();
     }
-
-    _read(size) {
+    _read(_size?: number) {
         // nothing to implement
     }
 }
-
-class DummyAgent extends http.Agent {
-    constructor() {
-        super();
-    }
-
-    createConnection(options, cb) {
-        cb(null, new DummySocket());
+class DummyWebsocketAgent extends http.Agent {
+    readonly events = new EventEmitter();
+    createConnection({}, callback: Function) {
+        callback(null, new DummyWebsocket({}));
     }
 }
 
 describe('Client', () => {
     it('should handle request', async () => {
-        const agent = new DummyAgent();
-        const client = new Client({ agent });
-
-        const server = http.createServer((req, res) => {
-            client.handleRequest(req, res);
+        const agent = new DummyAgent() as TunnelAgent;
+        const client = new Client({agent, id: 'any', secret: 'some'});
+        const server = http.createServer((request, response) => {
+            client.handleRequest(request, response);
         });
-
         await new Promise(resolve => server.listen(resolve));
 
-        const address = server.address();
-        const opt = {
-            host: 'localhost',
-            port: address.port,
-            path: '/',
-        };
-
-        const res = await new Promise((resolve) => {
-            const req = http.get(opt, (res) => {
-                resolve(res);
-            });
-            req.end();
+        const {headers} = await new Promise<http.IncomingMessage>((resolve) => {
+            const request = http.get({
+                host: 'localhost',
+                port: (server.address() as AddressInfo).port,
+                path: '/',
+            }, resolve);
+            request.end();
         });
-        assert.equal(res.headers['x-powered-by'], 'dummy');
+        expect(headers['x-powered-by']).toBe('dummy');
         server.close();
     });
 
     it('should handle upgrade', async () => {
-        // need a websocket server and a socket for it
-        class DummyWebsocketAgent extends http.Agent {
-            constructor() {
-                super();
-            }
-
-            createConnection(options, cb) {
-                cb(null, new DummyWebsocket());
-            }
-        }
-
-        const agent = new DummyWebsocketAgent();
-        const client = new Client({ agent });
-
+        const agent = new DummyWebsocketAgent() as TunnelAgent;
+        const client = new Client({agent, id: 'any', secret: 'some'});
         const server = http.createServer();
         server.on('upgrade', (req, socket, head) => {
             client.handleUpgrade(req, socket);
         });
-
         await new Promise(resolve => server.listen(resolve));
 
-        const address = server.address();
-
-        const netClient = await new Promise((resolve) => {
-            const newClient = net.createConnection({ port: address.port }, () => {
+        const netClient = await new Promise<Socket>((resolve) => {
+            const newClient = createConnection({
+                port: (server.address() as AddressInfo).port
+            }, () => {
                 resolve(newClient);
             });
         });
-
         const out = [
             'GET / HTTP/1.1',
             'Connection: Upgrade',
             'Upgrade: websocket'
         ];
-
         netClient.write(out.join('\r\n') + '\r\n\r\n');
 
         {
@@ -136,9 +111,8 @@ describe('Client', () => {
                 'Upgrade: websocket',
                 'Connection: Upgrade',
             ];
-            assert.equal(exp.join('\r\n') + '\r\n\r\n', data);
+            expect(data).toBe(exp.join('\r\n') + '\r\n\r\n');
         }
-
         {
             netClient.write('foobar');
             const data = await new Promise((resolve) => {
@@ -146,7 +120,7 @@ describe('Client', () => {
                     resolve(chunk.toString());
                 });
             });
-            assert.equal('foobar', data);
+            expect(data).toBe('foobar');
         }
 
         netClient.destroy();

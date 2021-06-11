@@ -1,10 +1,10 @@
-export const MAIN_PORT = +process.env.MAIN_PORT;
-export const AGENT_PORT = +process.env.AGENT_PORT;
+let {MAIN_PORT: mainPort = 80, AGENT_PORT: agentPort = 8080} = process.env;
+export const [MAIN_PORT, AGENT_PORT] = [+mainPort, +agentPort];
 export const {
   DOMAIN,
-  AUTH_JWKS_URI,
-  AUTH_AUDIENCE,
-  AUTH_TOKEN_ISSUER
+  AUTH_JWKS_URI = '',
+  AUTH_AUDIENCE = '',
+  AUTH_TOKEN_ISSUER = ''
 } = process.env;
 
 const invalidEnv = [

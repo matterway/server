@@ -1,10 +1,10 @@
-import express from 'express';
-import tldjs from 'tldjs';
+import * as express from 'express';
+import * as tldjs from 'tldjs';
 import Debug from 'debug';
-import http from 'http';
+import * as http from 'http';
 import {ClientManager} from './lib/ClientManager';
 import {AgentConnectionManager} from './lib/AgentConnectionManager';
-import jwt from 'express-jwt';
+import * as jwt from 'express-jwt';
 import {expressJwtSecret} from 'jwks-rsa';
 import {AUTH_AUDIENCE, AUTH_JWKS_URI, AUTH_TOKEN_ISSUER} from './config';
 import {randomBytes} from 'crypto';
@@ -13,18 +13,16 @@ import {promisify} from 'util';
 const randomBytesAsync = promisify(randomBytes);
 const debug = Debug('localtunnel:server');
 
-/**
- * @param {{domain?: string, maxSockets: number}} options
- * @returns
- */
-export function createServers({domain, maxSockets}) {
+export function createServers(
+    {domain, maxSockets}: {domain?: string, maxSockets: number}
+) {
     if (!Number.isInteger(maxSockets)) {
         throw new Error(`Invalid "maxSockets" option value: ${maxSockets}.`);
     }
     const myTldjs = tldjs.fromUserSettings({
         validHosts: domain ? [domain] : undefined
     });
-    const getClientIdFromHostname = (hostname) => {
+    const getClientIdFromHostname = (hostname: string) => {
         if (hostname === 'localhost') {
             // Workaround for "tldjs" to support localhost.
             hostname += '.me';
@@ -70,11 +68,7 @@ export function createServers({domain, maxSockets}) {
         const client = clientManager.getClientById(clientId);
         client.handleRequest(request, response);
     });
-    /**
-     * @param {http.IncomingMessage} request
-     * @param {import('net').Socket} socket
-     */
-    const onUpgrade = (request, socket) => {
+    const onUpgrade = (request: http.IncomingMessage, socket: import('net').Socket) => {
         const hostname = request.headers.host;
         const clientId = hostname && getClientIdFromHostname(hostname);
         if (!clientId || !clientManager.hasClient(clientId)) {
@@ -132,7 +126,7 @@ export function createServers({domain, maxSockets}) {
     app.use(({}, response) => {
         response.status(404).send('Not found.');
     });
-    app.use((error, {}, response, {}) => {
+    app.use((error: any, {}, response: express.Response, {}) => {
         response.status(500).send(String(error));
     });
 
