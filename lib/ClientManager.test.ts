@@ -1,5 +1,5 @@
 import {ClientManager} from './ClientManager';
-import {connectToAgent, createAgentServer, wait} from './test-helpers';
+import {connectToAgent, setupAgentServer, wait} from '../__assets__/test-helpers';
 
 const defaultOptions = {maxSockets: 1};
 const defaultClientOptions = {
@@ -18,7 +18,6 @@ describe('ClientManager', () => {
         const manager = new ClientManager(defaultOptions);
         expect(manager.stats.tunnels).toBe(0);
     });
-
     it('should create a new client with id', async () => {
         const manager = new ClientManager(defaultOptions);
         manager.newClient(defaultClientOptions);
@@ -26,21 +25,21 @@ describe('ClientManager', () => {
         manager.removeClient(defaultClientOptions.id);
         expect(manager.hasClient(defaultClientOptions.id)).toBe(false);
     });
-
-    it('should create a new client with random id if previous exists', async () => {
+    it('should fail to create a new client if already exists', async () => {
         const manager = new ClientManager(defaultOptions);
         const client = manager.newClient(defaultClientOptions);
         expect(client.id).toBe(defaultClientOptions.id);
         expect(() => {
             manager.newClient(defaultClientOptions);
-        }).toThrowError(new Error(`Client with id "${client.id}" already exists.`));
+        }).toThrowError(
+            new Error(`Client with id "${client.id}" already exists.`)
+        );
         manager.removeClient(client.id);
     });
-
     it('should remove client once it goes offline', async () => {
         const manager = new ClientManager(defaultOptions);
         manager.newClient(defaultClientOptions);
-        const {port, teardown} = await createAgentServer(manager);
+        const {port, teardown} = await setupAgentServer(manager);
         agentTeardown = teardown;
         const socket = await connectToAgent({
             port,
@@ -54,13 +53,12 @@ describe('ClientManager', () => {
         await wait(defaultClientOptions.graceTimeout);
         expect(manager.hasClient(defaultClientOptions.id)).toBe(false);
     });
-
     it('should remove correct client once it goes offline', async () => {
         const otherClientOptions = {secret: 'other-secret', id: 'other'};
         const manager = new ClientManager(defaultOptions);
         manager.newClient(defaultClientOptions);
         manager.newClient({...defaultClientOptions, ...otherClientOptions});
-        const {port, teardown} = await createAgentServer(manager);
+        const {port, teardown} = await setupAgentServer(manager);
         agentTeardown = teardown;
         const socket = await connectToAgent({
             port,
@@ -79,8 +77,7 @@ describe('ClientManager', () => {
         expect(manager.hasClient(defaultClientOptions.id)).toBe(false);
         expect(manager.hasClient(otherClientOptions.id)).toBe(false);
     });
-
-    it('should remove clients if they do not connect within 5 seconds', async () => {
+    it('should remove clients if they do not connect within the given timeout', async () => {
         const manager = new ClientManager(defaultOptions);
         manager.newClient(defaultClientOptions);
         expect(manager.hasClient(defaultClientOptions.id)).toBe(true);

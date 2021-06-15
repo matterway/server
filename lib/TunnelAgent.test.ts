@@ -1,7 +1,7 @@
 import {describe, it, expect} from '@jest/globals';
 import type {Socket} from 'net';
 import {ClientManager} from './ClientManager';
-import {connectToAgent, createAgentServer, wait} from './test-helpers';
+import {connectToAgent, setupAgentServer, wait} from '../__assets__/test-helpers';
 
 async function createAgent({
     maxSockets = 10,
@@ -15,7 +15,7 @@ async function createAgent({
         graceTimeout: null
     });
     const client = clientManager.getClientById(clientId)!;
-    const {port, teardown} = await createAgentServer(clientManager);
+    const {port, teardown} = await setupAgentServer(clientManager);
     return {
         port,
         secret,
@@ -42,7 +42,6 @@ describe('TunnelAgent', () => {
         await teardown();
         expect(agent.isClosed()).toBe(true);
     });
-
     it('should create a new server and accept connections', async () => {
         const {agent, teardown, port, secret} = await createAgent();
         agentTeardown = teardown;
@@ -64,7 +63,6 @@ describe('TunnelAgent', () => {
         await teardown();
         expect(socket.destroyed).toBe(true);
     });
-
     it('should reject connections over the max', async () => {
         const {teardown, port, secret} = await createAgent({maxSockets: 2});
         agentTeardown = teardown;
@@ -78,7 +76,6 @@ describe('TunnelAgent', () => {
         sock1.destroy();
         sock2.destroy();
     });
-
     it('should queue createConnection requests', async () => {
         const {agent, teardown, port, secret} = await createAgent();
         agentTeardown = teardown;
@@ -103,7 +100,6 @@ describe('TunnelAgent', () => {
         expect(connected).toBe(true);
         socket.destroy();
     });
-
     it('should should emit online event when a socket connects', async () => {
         const {agent, port, secret, teardown} = await createAgent();
         agentTeardown = teardown;
@@ -120,7 +116,6 @@ describe('TunnelAgent', () => {
         expect(onlineEmitted).toBe(true);
         socket.destroy();
     });
-
     it('should emit offline event when socket disconnects', async () => {
         const {agent, port, secret, teardown} = await createAgent();
         agentTeardown = teardown;
@@ -138,7 +133,6 @@ describe('TunnelAgent', () => {
         expect(offlineEmitted).toBe(true);
         socket.destroy();
     });
-
     it('should emit offline event only when last socket disconnects', async () => {
         const {agent, port, secret, teardown} = await createAgent();
         agentTeardown = teardown;
@@ -160,7 +154,6 @@ describe('TunnelAgent', () => {
         await offlinePromise;
         expect(offlineEmitted).toBe(true);
     });
-
     it('should return stats', async () => {
         const {agent, teardown} = await createAgent();
         agentTeardown = teardown;

@@ -76,7 +76,6 @@ describe('Client', () => {
         expect(headers['x-powered-by']).toBe('dummy');
         server.close();
     });
-
     it('should handle upgrade', async () => {
         const agent = new DummyWebsocketAgent() as TunnelAgent;
         const client = new Client({agent, id: 'any', secret: 'some'});
@@ -99,7 +98,6 @@ describe('Client', () => {
             'Upgrade: websocket'
         ];
         netClient.write(out.join('\r\n') + '\r\n\r\n');
-
         {
             const data = await new Promise((resolve) => {
                 netClient.once('data', (chunk) => {

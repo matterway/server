@@ -10,6 +10,8 @@ type ConnectionCallback = (error: null | Error, connection?: Socket) => void;
  * service http requests. This agent is usable wherever one can use an http.Agent.
  */
 export class TunnelAgent extends Agent {
+    readonly events = new EventEmitter();
+    readonly maxSockets;
     /**
      * Sockets we can hand out via createConnection.
      */
@@ -19,9 +21,7 @@ export class TunnelAgent extends Agent {
      * once a socket is available it is handed out to the next callback.
      */
     readonly #waitingCreateConnection: ConnectionCallback[] = [];
-    readonly events = new EventEmitter();
     readonly #debug;
-    readonly maxSockets;
     #closed = false;
     #connectedSockets = 0
 
@@ -40,7 +40,7 @@ export class TunnelAgent extends Agent {
     }
     stats() {
         return {
-            connectedSockets: this.#connectedSockets,
+            connectedSockets: this.#connectedSockets
         };
     }
     canConnect() {
@@ -58,7 +58,7 @@ export class TunnelAgent extends Agent {
         }
         socket.once('close', (hadError) => {
             this.#debug('closed socket (error: %s)', hadError);
-            this.#connectedSockets -= 1;
+            this.#connectedSockets--;
             // remove the socket from available list
             const idx = this.#availableSockets.indexOf(socket);
             if (idx >= 0) {
@@ -82,7 +82,7 @@ export class TunnelAgent extends Agent {
         if (this.#connectedSockets === 0) {
             this.events.emit('online');
         }
-        this.#connectedSockets += 1;
+        this.#connectedSockets++;
         this.#debug('new connection from: %s', socket.address());
 
         // if there are queued callbacks, give this socket now and don't queue into available

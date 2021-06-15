@@ -3,7 +3,7 @@ import * as tldjs from 'tldjs';
 import Debug from 'debug';
 import * as http from 'http';
 import {ClientManager} from './lib/ClientManager';
-import {AgentConnectionManager} from './lib/AgentConnectionManager';
+import {createTunnelAgentServer} from './lib/TunnelAgentServer';
 import * as jwt from 'express-jwt';
 import {expressJwtSecret} from 'jwks-rsa';
 import {AUTH_AUDIENCE, AUTH_JWKS_URI, AUTH_TOKEN_ISSUER} from './config';
@@ -30,11 +30,10 @@ export function createServers(
         return myTldjs.getSubdomain(hostname);
     };
     const clientManager = new ClientManager({maxSockets});
-    const agentConnectionManager = new AgentConnectionManager({
-        clientManager
-    });
+    const agentServer = createTunnelAgentServer({clientManager});
     const app = express();
 
+    app.use(express.json());
     app.get('/', ({hostname}, response, next) => {
         if (hostname && getClientIdFromHostname(hostname)) {
             next();
@@ -42,7 +41,7 @@ export function createServers(
         }
         response.status(200).send('All systems are operational.');
     });
-    0 && app.use(jwt({
+    app.use(jwt({
         secret: expressJwtSecret({
             cache: true,
             rateLimit: true,
@@ -88,19 +87,18 @@ export function createServers(
         });
     });
     apiRouter.get('/tunnels/:clientId/status', ({params}, response) => {
-        const client = clientManager.getClientById(params.clientId);
-        if (!client) {
+        if (!clientManager.hasClient(params.clientId)) {
             response.sendStatus(404);
             return;
         }
-        const {connectedSockets} = client.stats();
-        response.json({connectedSockets});
+        const client = clientManager.getClientById(params.clientId);
+        response.json(client.stats());
     });
     apiRouter.post('/tunnels', async (request, response) => {
-        const {query: {clientId}, hostname} = request;
+        const {body: {clientId}, hostname} = request;
         if (
             typeof clientId !== 'string' ||
-            !/^[a-z0-9_]{4,63}$/.test(clientId)
+            !/^[a-z0-9_\-]{4,63}$/.test(clientId)
         ) {
             response.status(400).send(
                 'Invalid subdomain. Subdomains must be lowercase and ' +
@@ -127,11 +125,12 @@ export function createServers(
         response.status(404).send('Not found.');
     });
     app.use((error: any, {}, response: express.Response, {}) => {
-        response.status(500).send(String(error));
+        const status = error instanceof jwt.UnauthorizedError ? 401 : 500;
+        response.status(status).send(String(error));
     });
 
     const appServer = http.createServer(app);
     appServer.on('upgrade', onUpgrade);
 
-    return {appServer, agentServer: agentConnectionManager.server};
+    return {appServer, agentServer};
 };

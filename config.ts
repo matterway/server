@@ -13,7 +13,7 @@ const invalidEnv = [
       Number.isInteger(value) &&
       value >= 80 && value < Math.pow(2, 16)
     )),
-  ...Object.entries({/* AUTH_JWKS_URI, AUTH_AUDIENCE, AUTH_TOKEN_ISSUER */})
+  ...Object.entries({AUTH_JWKS_URI, AUTH_AUDIENCE, AUTH_TOKEN_ISSUER})
     .filter(([, value]) => !value)
 ];
 if (invalidEnv.length > 0) {

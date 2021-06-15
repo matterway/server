@@ -6,7 +6,6 @@ import * as EventEmitter from 'events';
 import type {TunnelAgent} from './TunnelAgent';
 
 const defaultGraceTimeout = 3000;
-type Public<T> = {[key in keyof T]: T[key]};
 
 // A client encapsulates request/response handling using an agent
 // If an agent is destroyed, the request handling will error
@@ -26,7 +25,7 @@ export class Client extends EventEmitter {
     }: {
         id: string,
         secret: string,
-        agent: Public<TunnelAgent>,
+        agent: TunnelAgent,
         graceTimeout?: number | null
     }) {
         super();

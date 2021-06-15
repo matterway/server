@@ -1,13 +1,13 @@
 import * as http from 'http';
 import type {Socket, AddressInfo} from 'net';
-import type {ClientManager} from './ClientManager';
-import {AgentConnectionManager} from './AgentConnectionManager';
+import type {ClientManager} from '../lib/ClientManager';
+import {createTunnelAgentServer} from '../lib/TunnelAgentServer';
 
 export function wait(timeout = 500) {
   return new Promise((resolve) => setTimeout(resolve, timeout));
 }
-export async function createAgentServer(clientManager: ClientManager) {
-  const {server} = new AgentConnectionManager({clientManager});
+export async function setupAgentServer(clientManager: ClientManager) {
+  const server = createTunnelAgentServer({clientManager});
   await new Promise((resolve, reject) => {
     server.listen(resolve);
     server.once('close', () => {
