@@ -6,7 +6,7 @@ import {ClientManager} from './lib/ClientManager';
 import {createTunnelAgentServer} from './lib/TunnelAgentServer';
 import * as jwt from 'express-jwt';
 import {expressJwtSecret} from 'jwks-rsa';
-import {TUNNEL_PORT, AUTH_AUDIENCE, AUTH_JWKS_URI, AUTH_TOKEN_ISSUER} from './config';
+import {TUNNEL_PORT, TUNNEL_DOMAIN, AUTH_AUDIENCE, AUTH_JWKS_URI, AUTH_TOKEN_ISSUER} from './config';
 import {randomBytes} from 'crypto';
 import {promisify} from 'util';
 
@@ -100,7 +100,14 @@ export function createServers(
             debug('making new client with id %s', clientId);
             const info = clientManager.newClient({id: clientId, secret});
             const url = info.id + '.' + hostname;
-            response.json({...info, url, port: TUNNEL_PORT});
+            response.json({
+                ...info,
+                url,
+                tunnel: {
+                    hostname: TUNNEL_DOMAIN ?? hostname,
+                    port: TUNNEL_PORT
+                }
+            });
         } catch (error) {
             response.status(500).send(String(error));
         }

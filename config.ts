@@ -1,7 +1,12 @@
-let {API_PORT: apiPort = 80, TUNNEL_PORT: tunnelPort = 3030} = process.env;
-export const [API_PORT, TUNNEL_PORT] = [+apiPort, +tunnelPort];
+let {
+  API_PORT: apiPort = 80,
+  TUNNEL_PORT: tunnelPort = 3030,
+  MAX_SOCKETS: maxSockets = 10
+} = process.env;
+export const [API_PORT, TUNNEL_PORT, MAX_SOCKETS] = [+apiPort, +tunnelPort, +maxSockets];
 export const {
   DOMAIN,
+  TUNNEL_DOMAIN,
   AUTH_JWKS_URI = '',
   AUTH_AUDIENCE = '',
   AUTH_TOKEN_ISSUER = ''
@@ -13,6 +18,8 @@ const invalidEnv = [
       Number.isInteger(value) &&
       value >= 80 && value < Math.pow(2, 16)
     )),
+  ...Object.entries({MAX_SOCKETS})
+    .filter(([, value]) => !Number.isInteger(value)),
   ...Object.entries({AUTH_JWKS_URI, AUTH_AUDIENCE, AUTH_TOKEN_ISSUER})
     .filter(([, value]) => !value)
 ];
