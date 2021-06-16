@@ -17,23 +17,19 @@ describe('Server', () => {
     it('supports only "/" and "/connect" endpoints', async () => {
         const clientManager = new ClientManager({maxSockets: 1});
         const server = createTunnelAgentServer({clientManager});
-        const {statusCode, text} = await request(server).get('/some/random');
-        expect([statusCode, text]).toEqual(
-            [404, 'Not found.']
-        );
-    });
-    it('supports only "GET" methods', async () => {
-        const clientManager = new ClientManager({maxSockets: 1});
-        const server = createTunnelAgentServer({clientManager});
-        const {statusCode, text} = await request(server).post('/connect');
-        expect([statusCode, text]).toEqual(
-            [405, 'Only GET methods are supported.']
-        );
+        for (const [method, path] of (
+            [['get', '/some/random'], ['post', '/'], ['get', '/connect']] as const
+        )) {
+            const {statusCode, text} = await request(server)[method](path);
+            expect([statusCode, text, {method, path}]).toEqual(
+                [404, 'Not found.', {method, path}]
+            );
+        }
     });
     it('fails if secret is missing in request', async () => {
         const clientManager = new ClientManager({maxSockets: 1});
         const server = createTunnelAgentServer({clientManager});
-        const {statusCode, text} = await request(server).get('/connect');
+        const {statusCode, text} = await request(server).post('/connect');
         expect([statusCode, text]).toEqual([400, 'Client secret is missing.']);
     });
     it('fails if client with this secret not found', async () => {
@@ -41,7 +37,7 @@ describe('Server', () => {
         clientManager.newClient({id: 'some', secret: 'foo'});
         const server = createTunnelAgentServer({clientManager});
         const {statusCode, text} = await request(server)
-            .get('/connect')
+            .post('/connect')
             .set('x-client-secret', 'bar');
         expect([statusCode, text]).toEqual([404, 'Client not found.']);
     });

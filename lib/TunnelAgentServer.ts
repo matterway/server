@@ -1,50 +1,51 @@
 import {createServer} from 'http';
+import * as express from 'express';
 import type {ClientManager} from './ClientManager';
 
 export function createTunnelAgentServer(
   {clientManager}: {clientManager: ClientManager}
 ) {
-  const server = createServer(({headers, url, method}, response) => {
-    const respond = (statusCode: number, message: string) => {
-      response.statusCode = statusCode;
-      response.end(message);
-    };
-    if (method !== 'GET') {
-      return respond(405, 'Only GET methods are supported.');
-    }
-    if (url === '/') {
-      return respond(200, 'All systems are operational.');
-    }
-    if (url !== '/connect') {
-      return respond(404, 'Not found.');
-    }
+  const app = express();
+  app.get('/', ({}, response) => {
+    // Important for health checking.
+    response.status(200).send('All systems are operational.');
+  });
+  app.post('/connect', ({headers}, response) => {
     const clientSecret = headers['x-client-secret'];
     if (!clientSecret) {
-      return respond(400, 'Client secret is missing.');
+      response.status(400).send('Client secret is missing.');
+      return;
     }
     if (typeof clientSecret !== 'string') {
-      return respond(400, 'Client secret is invalid.');
+      response.status(400).send('Client secret is invalid.');
+      return;
     }
     if (!clientManager.hasSecret(clientSecret)) {
-      return respond(404, 'Client not found.');
+      response.status(404).send('Client not found.');
+      return;
+    }
+    const client = clientManager.getClientBySecret(clientSecret);
+    if (!client.agent.canConnect()) {
+      return response.status(403).send('Too many connections.');
     }
     const {socket} = response;
     if (socket === null) {
-      return respond(500, 'Socket was not created.');
+      response.status(500).send('Socket was not created.');
+      return;
     }
-    try {
-      const client = clientManager.getClientBySecret(clientSecret);
-      if (!client.agent.canConnect()) {
-        return respond(403, 'Too many connections.');
-      }
-      response.shouldKeepAlive = true;
-      respond(200, 'Connection created.');
-      socket.removeAllListeners('data');
-      client.agent.onConnection(socket);
-    } catch (error) {
-      respond(500, String(error));
-    }
+    response.shouldKeepAlive = true;
+    response.status(200).send('Connection created.');
+    socket.removeAllListeners('data');
+    client.agent.onConnection(socket);
   });
+  app.use(({}, response) => {
+    response.status(404).send('Not found.');
+  });
+  app.use((error: any, {}, response: express.Response, {}) => {
+    response.status(500).send(String(error));
+  });
+
+  const server = createServer(app);
   server.keepAliveTimeout = Math.pow(2, 31) - 1;
   return server;
 }

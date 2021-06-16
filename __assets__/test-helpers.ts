@@ -32,7 +32,8 @@ export async function setupAgentServer(clientManager: ClientManager) {
   };
 }
 export function connectToAgent({port, secret}: {port: number, secret: string}) {
-  const request = http.get({
+  const request = http.request({
+    method: 'POST',
     port,
     path: '/connect',
     headers: {'x-client-secret': secret}

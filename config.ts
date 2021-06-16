@@ -1,5 +1,5 @@
-let {MAIN_PORT: mainPort = 80, AGENT_PORT: agentPort = 8080} = process.env;
-export const [MAIN_PORT, AGENT_PORT] = [+mainPort, +agentPort];
+let {API_PORT: apiPort = 80, TUNNEL_PORT: tunnelPort = 3030} = process.env;
+export const [API_PORT, TUNNEL_PORT] = [+apiPort, +tunnelPort];
 export const {
   DOMAIN,
   AUTH_JWKS_URI = '',
@@ -8,7 +8,7 @@ export const {
 } = process.env;
 
 const invalidEnv = [
-  ...Object.entries({MAIN_PORT, AGENT_PORT})
+  ...Object.entries({API_PORT, TUNNEL_PORT})
     .filter(([, value]) => !(
       Number.isInteger(value) &&
       value >= 80 && value < Math.pow(2, 16)

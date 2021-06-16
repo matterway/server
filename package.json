@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@types/debug": "4.1.5",
-    "@types/mocha": "8.2.2",
     "@types/pump": "1.1.1",
     "@types/tldjs": "2.3.0",
     "book": "1.3.3",
@@ -28,6 +27,7 @@
     "@types/ws": "7.4.4",
     "jest": "27.0.4",
     "node-dev": "3.1.3",
+    "rimraf": "3.0.2",
     "supertest": "3.1.0",
     "ts-jest": "27.0.3",
     "ts-node": "10.0.0",
@@ -35,10 +35,12 @@
     "ws": "7.4.6"
   },
   "scripts": {
-    "test": "yarn test:unit",
-    "test:unit": "AUTH_JWKS_URI=any AUTH_AUDIENCE=any AUTH_TOKEN_ISSUER=any jest",
-    "start": "./bin/server",
-    "dev": "node-dev bin/server --port 3000"
+    "build": "yarn build:clean && yarn build:prod",
+    "build:clean": "rimraf dist",
+    "build:prod": "tsc --project tsconfig.production.json",
+    "test": "yarn test:types && yarn test:unit",
+    "test:types": "tsc --noEmit",
+    "test:unit": "AUTH_JWKS_URI=any AUTH_AUDIENCE=any AUTH_TOKEN_ISSUER=any jest"
   },
   "jest": {
     "preset": "ts-jest",

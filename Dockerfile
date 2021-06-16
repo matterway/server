@@ -1,13 +1,10 @@
-FROM node:10.18.1-alpine
+FROM node:14.15.0-alpine
 
 WORKDIR /app
-
-COPY package.json /app/
-COPY yarn.lock /app/
-
-RUN yarn install --production && yarn cache clean
-
 COPY . /app
 
+RUN yarn install
+RUN yarn build
+
 ENV NODE_ENV production
-ENTRYPOINT ["./bin/server"]
+ENTRYPOINT ["node", "./dist/bin/server.js"]

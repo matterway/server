@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "noEmit": true,
+    "outDir": "dist",
     "allowJs": true,
     "checkJs": true,
     "target": "ESNext",
@@ -9,6 +9,7 @@
     "moduleResolution": "node"
   },
   "exclude": [
-    "node_modules"
+    "./node_modules",
+    "./dist"
   ]
 }

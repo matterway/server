@@ -6,7 +6,7 @@ import {ClientManager} from './lib/ClientManager';
 import {createTunnelAgentServer} from './lib/TunnelAgentServer';
 import * as jwt from 'express-jwt';
 import {expressJwtSecret} from 'jwks-rsa';
-import {AUTH_AUDIENCE, AUTH_JWKS_URI, AUTH_TOKEN_ISSUER} from './config';
+import {TUNNEL_PORT, AUTH_AUDIENCE, AUTH_JWKS_URI, AUTH_TOKEN_ISSUER} from './config';
 import {randomBytes} from 'crypto';
 import {promisify} from 'util';
 
@@ -23,36 +23,16 @@ export function createServers(
         validHosts: domain ? [domain] : undefined
     });
     const getClientIdFromHostname = (hostname: string) => {
-        if (hostname === 'localhost') {
+        if (/(^|\.)localhost$/.test(hostname)) {
             // Workaround for "tldjs" to support localhost.
             hostname += '.me';
         }
         return myTldjs.getSubdomain(hostname);
     };
     const clientManager = new ClientManager({maxSockets});
-    const agentServer = createTunnelAgentServer({clientManager});
+    const tunnelServer = createTunnelAgentServer({clientManager});
     const app = express();
 
-    app.use(express.json());
-    app.get('/', ({hostname}, response, next) => {
-        if (hostname && getClientIdFromHostname(hostname)) {
-            next();
-            return;
-        }
-        response.status(200).send('All systems are operational.');
-    });
-    app.use(jwt({
-        secret: expressJwtSecret({
-            cache: true,
-            rateLimit: true,
-            jwksRequestsPerMinute: 5,
-            jwksUri: AUTH_JWKS_URI
-        }),
-        credentialsRequired: true,
-        audience: AUTH_AUDIENCE,
-        issuer: AUTH_TOKEN_ISSUER,
-        algorithms: ['RS256']
-    }));
     app.use((request, response, next) => {
         const {hostname} = request;
         const clientId = hostname && getClientIdFromHostname(hostname);
@@ -77,6 +57,10 @@ export function createServers(
         const client = clientManager.getClientById(clientId);
         client.handleUpgrade(request, socket);
     };
+    app.get('/', ({}, response, next) => {
+        // Important for health checking.
+        response.status(200).send('All systems are operational.');
+    });
     const apiRouter = express.Router();
 
     apiRouter.get('/status', ({}, response) => {
@@ -94,6 +78,7 @@ export function createServers(
         const client = clientManager.getClientById(params.clientId);
         response.json(client.stats());
     });
+    apiRouter.use(express.json());
     apiRouter.post('/tunnels', async (request, response) => {
         const {body: {clientId}, hostname} = request;
         if (
@@ -115,11 +100,23 @@ export function createServers(
             debug('making new client with id %s', clientId);
             const info = clientManager.newClient({id: clientId, secret});
             const url = info.id + '.' + hostname;
-            response.json({...info, url});
+            response.json({...info, url, port: TUNNEL_PORT});
         } catch (error) {
             response.status(500).send(String(error));
         }
     });
+    app.use(jwt({
+        secret: expressJwtSecret({
+            cache: true,
+            rateLimit: true,
+            jwksRequestsPerMinute: 5,
+            jwksUri: AUTH_JWKS_URI
+        }),
+        credentialsRequired: true,
+        audience: AUTH_AUDIENCE,
+        issuer: AUTH_TOKEN_ISSUER,
+        algorithms: ['RS256']
+    }));
     app.use('/api', apiRouter);
     app.use(({}, response) => {
         response.status(404).send('Not found.');
@@ -129,8 +126,8 @@ export function createServers(
         response.status(status).send(String(error));
     });
 
-    const appServer = http.createServer(app);
-    appServer.on('upgrade', onUpgrade);
+    const apiServer = http.createServer(app);
+    apiServer.on('upgrade', onUpgrade);
 
-    return {appServer, agentServer};
+    return {apiServer, tunnelServer};
 };

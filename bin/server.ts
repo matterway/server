@@ -1,17 +1,16 @@
-#!/usr/bin/env ts-node
-
-import 'localenv';
-import optimist from 'optimist';
-import log from 'book';
+require('localenv');
+const optimist = require('optimist');
+const log = require('book');
 import Debug from 'debug';
+import type {AddressInfo} from 'net';
 import {createServers} from '../server';
-import {MAIN_PORT, DOMAIN, AGENT_PORT} from '../config';
+import {API_PORT, DOMAIN, TUNNEL_PORT} from '../config';
 
 const debug = Debug('localtunnel');
 const argv = optimist
     .usage('Usage: $0 --port [num]')
     .options('port', {
-        default: MAIN_PORT,
+        default: API_PORT,
         describe: 'listen on this port for outside requests'
     })
     .options('address', {
@@ -33,15 +32,21 @@ if (argv.help) {
     process.exit();
 }
 
-const {appServer, agentServer} = createServers({
+const {apiServer, tunnelServer} = createServers({
     maxSockets: +argv['max-sockets'],
     domain: argv.domain,
 });
-appServer.listen(argv.port, argv.address, () => {
-    debug('app server listening on port: %d', appServer.address().port);
+apiServer.listen(argv.port, argv.address, () => {
+    debug(
+        'api server listening on port: %d',
+        (apiServer.address() as AddressInfo).port
+    );
 });
-agentServer.listen(AGENT_PORT, argv.address, () => {
-    debug('agent server listening on port: %d', agentServer.address().port);
+tunnelServer.listen(TUNNEL_PORT, argv.address, () => {
+    debug(
+        'agent server listening on port: %d',
+        (tunnelServer.address() as AddressInfo).port
+    );
 });
 
 process.on('SIGINT', () => {
