@@ -1,13 +1,25 @@
 import * as http from 'http';
+import * as express from 'express';
 import type {Socket, AddressInfo} from 'net';
-import type {ClientManager} from '../lib/ClientManager';
-import {createTunnelAgentServer} from '../lib/TunnelAgentServer';
+import {createTunnelAgentMiddleware, TunnelAgentMiddlewareOptions} from '../lib/TunnelAgentMiddleware';
 
 export function wait(timeout = 500) {
   return new Promise((resolve) => setTimeout(resolve, timeout));
 }
-export async function setupAgentServer(clientManager: ClientManager) {
-  const server = createTunnelAgentServer({clientManager});
+export function createTunnelAgentTestServer(
+  {tunnelMiddleware}: {tunnelMiddleware: express.RequestHandler}
+) {
+  const app = express();
+  app.post('/connect', tunnelMiddleware);
+  return http.createServer(app);
+}
+
+export async function setupTunnelAgentTestServer(
+  {tunnelMiddlewareOptions}: {tunnelMiddlewareOptions: TunnelAgentMiddlewareOptions}
+) {
+  const server = createTunnelAgentTestServer({
+    tunnelMiddleware: createTunnelAgentMiddleware(tunnelMiddlewareOptions)
+  });
   await new Promise((resolve, reject) => {
     server.listen(resolve);
     server.once('close', () => {

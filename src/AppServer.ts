@@ -3,17 +3,17 @@ import * as tldjs from 'tldjs';
 import Debug from 'debug';
 import * as http from 'http';
 import {ClientManager} from './lib/ClientManager';
-import {createTunnelAgentServer} from './lib/TunnelAgentServer';
+import {createTunnelAgentMiddleware} from './lib/TunnelAgentMiddleware';
 import * as jwt from 'express-jwt';
 import {expressJwtSecret} from 'jwks-rsa';
-import {TUNNEL_PORT, TUNNEL_DOMAIN, AUTH_AUDIENCE, AUTH_JWKS_URI, AUTH_TOKEN_ISSUER} from './config';
+import {AUTH_AUDIENCE, AUTH_JWKS_URI, AUTH_TOKEN_ISSUER} from './config';
 import {randomBytes} from 'crypto';
 import {promisify} from 'util';
 
 const randomBytesAsync = promisify(randomBytes);
 const debug = Debug('localtunnel:server');
 
-export function createServers(
+export function createAppServer(
     {domain, maxSockets}: {domain?: string, maxSockets: number}
 ) {
     if (!Number.isInteger(maxSockets)) {
@@ -30,7 +30,6 @@ export function createServers(
         return myTldjs.getSubdomain(hostname);
     };
     const clientManager = new ClientManager({maxSockets});
-    const tunnelServer = createTunnelAgentServer({clientManager});
     const app = express();
 
     app.use((request, response, next) => {
@@ -61,6 +60,8 @@ export function createServers(
         // Important for health checking.
         response.status(200).send('All systems are operational.');
     });
+    app.post('/connect', createTunnelAgentMiddleware({clientManager}));
+
     const apiRouter = express.Router();
 
     apiRouter.get('/status', ({}, response) => {
@@ -100,14 +101,7 @@ export function createServers(
             debug('making new client with id %s', clientId);
             const info = clientManager.newClient({id: clientId, secret});
             const url = info.id + '.' + hostname;
-            response.json({
-                ...info,
-                url,
-                tunnel: {
-                    hostname: TUNNEL_DOMAIN ?? hostname,
-                    port: TUNNEL_PORT
-                }
-            });
+            response.json({...info, url});
         } catch (error) {
             response.status(500).send(String(error));
         }
@@ -132,9 +126,8 @@ export function createServers(
         const status = error instanceof jwt.UnauthorizedError ? 401 : 500;
         response.status(status).send(String(error));
     });
+    const server = http.createServer(app);
+    server.on('upgrade', onUpgrade);
 
-    const apiServer = http.createServer(app);
-    apiServer.on('upgrade', onUpgrade);
-
-    return {apiServer, tunnelServer};
+    return server;
 };

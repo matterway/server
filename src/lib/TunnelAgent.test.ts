@@ -1,7 +1,7 @@
 import {describe, it, expect} from '@jest/globals';
 import type {Socket} from 'net';
 import {ClientManager} from './ClientManager';
-import {connectToAgent, setupAgentServer, wait} from '../__assets__/test-helpers';
+import {connectToAgent, setupTunnelAgentTestServer, wait} from '../__assets__/test-helpers';
 
 async function createAgent({
     maxSockets = 10,
@@ -15,7 +15,9 @@ async function createAgent({
         graceTimeout: null
     });
     const client = clientManager.getClientById(clientId)!;
-    const {port, teardown} = await setupAgentServer(clientManager);
+    const {port, teardown} = await setupTunnelAgentTestServer({
+        tunnelMiddlewareOptions: {clientManager}
+    });
     return {
         port,
         secret,

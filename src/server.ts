@@ -1,16 +1,14 @@
-require('localenv');
 const optimist = require('optimist');
-const log = require('book');
 import Debug from 'debug';
 import type {AddressInfo} from 'net';
-import {createServers} from '../server';
-import {API_PORT, DOMAIN, TUNNEL_PORT, MAX_SOCKETS} from '../config';
+import {createAppServer} from './AppServer';
+import {PORT, DOMAIN, MAX_TUNNEL_CONNECTIONS} from './config';
 
 const debug = Debug('localtunnel');
 const argv = optimist
     .usage('Usage: $0 --port [num]')
     .options('port', {
-        default: API_PORT,
+        default: PORT,
         describe: 'listen on this port for outside requests'
     })
     .options('address', {
@@ -22,7 +20,7 @@ const argv = optimist
         describe: 'Specify the base domain name. This is optional if hosting localtunnel from a regular example.com domain. This is required if hosting a localtunnel server from a subdomain (i.e. lt.example.dom where clients will be client-app.lt.example.come)',
     })
     .options('max-sockets', {
-        default: MAX_SOCKETS,
+        default: MAX_TUNNEL_CONNECTIONS,
         describe: 'maximum number of tcp sockets each client is allowed to establish at one time (the tunnels)'
     })
     .argv;
@@ -32,20 +30,14 @@ if (argv.help) {
     process.exit();
 }
 
-const {apiServer, tunnelServer} = createServers({
+const server = createAppServer({
     maxSockets: +argv['max-sockets'],
     domain: argv.domain,
 });
-apiServer.listen(argv.port, argv.address, () => {
+server.listen(argv.port, argv.address, () => {
     debug(
         'api server listening on port: %d',
-        (apiServer.address() as AddressInfo).port
-    );
-});
-tunnelServer.listen(TUNNEL_PORT, argv.address, () => {
-    debug(
-        'agent server listening on port: %d',
-        (tunnelServer.address() as AddressInfo).port
+        (server.address() as AddressInfo).port
     );
 });
 
@@ -54,12 +46,6 @@ process.on('SIGINT', () => {
 });
 process.on('SIGTERM', () => {
     process.exit();
-});
-process.on('uncaughtException', (err) => {
-    log.error(err);
-});
-process.on('unhandledRejection', (reason, promise) => {
-    log.error(reason);
 });
 
 // vim: ft=javascript

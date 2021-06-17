@@ -1,5 +1,5 @@
 import {ClientManager} from './ClientManager';
-import {connectToAgent, setupAgentServer, wait} from '../__assets__/test-helpers';
+import {connectToAgent, setupTunnelAgentTestServer, wait} from '../__assets__/test-helpers';
 
 const defaultOptions = {maxSockets: 1};
 const defaultClientOptions = {
@@ -39,7 +39,9 @@ describe('ClientManager', () => {
     it('should remove client once it goes offline', async () => {
         const manager = new ClientManager(defaultOptions);
         manager.newClient(defaultClientOptions);
-        const {port, teardown} = await setupAgentServer(manager);
+        const {port, teardown} = await setupTunnelAgentTestServer({
+            tunnelMiddlewareOptions: {clientManager: manager}
+        });
         agentTeardown = teardown;
         const socket = await connectToAgent({
             port,
@@ -58,7 +60,9 @@ describe('ClientManager', () => {
         const manager = new ClientManager(defaultOptions);
         manager.newClient(defaultClientOptions);
         manager.newClient({...defaultClientOptions, ...otherClientOptions});
-        const {port, teardown} = await setupAgentServer(manager);
+        const {port, teardown} = await setupTunnelAgentTestServer({
+            tunnelMiddlewareOptions: {clientManager: manager}
+        });
         agentTeardown = teardown;
         const socket = await connectToAgent({
             port,

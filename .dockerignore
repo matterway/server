@@ -1,6 +1,2 @@
-.git
-node_modules
-dist
-*.test.*
-jest.*
-__assets__
+**/*.test.*
+**/__*__

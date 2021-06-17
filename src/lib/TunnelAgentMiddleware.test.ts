@@ -2,40 +2,24 @@ import {describe, it, expect} from '@jest/globals';
 import * as request from 'supertest';
 import type {AddressInfo} from 'net';
 import {ClientManager} from './ClientManager';
-import {createTunnelAgentServer} from './TunnelAgentServer';
-import {connectToAgent, wait} from '../__assets__/test-helpers';
+import {createTunnelAgentTestServer, connectToAgent, wait} from '../__assets__/test-helpers';
+import {createTunnelAgentMiddleware} from './TunnelAgentMiddleware';
 
 describe('Server', () => {
-    it('creates tunnel agent server', async () => {
-        const clientManager = new ClientManager({maxSockets: 1});
-        const server = createTunnelAgentServer({clientManager});
-        const {statusCode, text} = await request(server).get('/');
-        expect([statusCode, text]).toEqual(
-            [200, 'All systems are operational.']
-        );
-    });
-    it('supports only "/" and "/connect" endpoints', async () => {
-        const clientManager = new ClientManager({maxSockets: 1});
-        const server = createTunnelAgentServer({clientManager});
-        for (const [method, path] of (
-            [['get', '/some/random'], ['post', '/'], ['get', '/connect']] as const
-        )) {
-            const {statusCode, text} = await request(server)[method](path);
-            expect([statusCode, text, {method, path}]).toEqual(
-                [404, 'Not found.', {method, path}]
-            );
-        }
-    });
     it('fails if secret is missing in request', async () => {
         const clientManager = new ClientManager({maxSockets: 1});
-        const server = createTunnelAgentServer({clientManager});
+        const server = createTunnelAgentTestServer({
+            tunnelMiddleware: createTunnelAgentMiddleware({clientManager})
+        });
         const {statusCode, text} = await request(server).post('/connect');
         expect([statusCode, text]).toEqual([400, 'Client secret is missing.']);
     });
     it('fails if client with this secret not found', async () => {
         const clientManager = new ClientManager({maxSockets: 1});
         clientManager.newClient({id: 'some', secret: 'foo'});
-        const server = createTunnelAgentServer({clientManager});
+        const server = createTunnelAgentTestServer({
+            tunnelMiddleware: createTunnelAgentMiddleware({clientManager})
+        });
         const {statusCode, text} = await request(server)
             .post('/connect')
             .set('x-client-secret', 'bar');
@@ -45,7 +29,9 @@ describe('Server', () => {
         const clientManager = new ClientManager({maxSockets: 1});
         clientManager.newClient({id: 'some', secret: 'foo'});
         const client = clientManager.getClientById('some');
-        const server = createTunnelAgentServer({clientManager});
+        const server = createTunnelAgentTestServer({
+            tunnelMiddleware: createTunnelAgentMiddleware({clientManager})
+        });
         await new Promise((resolve) => server.listen(resolve));
         const onlinePromise = new Promise((resolve) => {
             client.agent.events.on('online', resolve);

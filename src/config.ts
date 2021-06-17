@@ -1,24 +1,22 @@
 let {
-  API_PORT: apiPort = 80,
-  TUNNEL_PORT: tunnelPort = 3030,
-  MAX_SOCKETS: maxSockets = 10
+  PORT: port = 80,
+  MAX_TUNNEL_CONNECTIONS: maxTunnelConnections = 10
 } = process.env;
-export const [API_PORT, TUNNEL_PORT, MAX_SOCKETS] = [+apiPort, +tunnelPort, +maxSockets];
+export const [PORT, MAX_TUNNEL_CONNECTIONS] = [+port, +maxTunnelConnections];
 export const {
   DOMAIN,
-  TUNNEL_DOMAIN,
   AUTH_JWKS_URI = '',
   AUTH_AUDIENCE = '',
   AUTH_TOKEN_ISSUER = ''
 } = process.env;
 
 const invalidEnv = [
-  ...Object.entries({API_PORT, TUNNEL_PORT})
+  ...Object.entries({PORT})
     .filter(([, value]) => !(
       Number.isInteger(value) &&
       value >= 80 && value < Math.pow(2, 16)
     )),
-  ...Object.entries({MAX_SOCKETS})
+  ...Object.entries({MAX_TUNNEL_CONNECTIONS})
     .filter(([, value]) => !Number.isInteger(value)),
   ...Object.entries({AUTH_JWKS_URI, AUTH_AUDIENCE, AUTH_TOKEN_ISSUER})
     .filter(([, value]) => !value)
