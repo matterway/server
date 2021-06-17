@@ -31,7 +31,6 @@ export function createTunnelAgentMiddleware(
       return;
     }
     response.shouldKeepAlive = true;
-    response.setTimeout(Math.pow(2, 31) - 1);
     response.status(200).send('Connection created.');
     socket.removeAllListeners('data');
     client.agent.onConnection(socket);

@@ -64,6 +64,18 @@ export function createAppServer(
 
     const apiRouter = express.Router();
 
+    apiRouter.use(jwt({
+        secret: expressJwtSecret({
+            cache: true,
+            rateLimit: true,
+            jwksRequestsPerMinute: 5,
+            jwksUri: AUTH_JWKS_URI
+        }),
+        credentialsRequired: true,
+        audience: AUTH_AUDIENCE,
+        issuer: AUTH_TOKEN_ISSUER,
+        algorithms: ['RS256']
+    }));
     apiRouter.get('/status', ({}, response) => {
         const {tunnels} = clientManager.stats;
         response.json({
@@ -106,18 +118,6 @@ export function createAppServer(
             response.status(500).send(String(error));
         }
     });
-    app.use(jwt({
-        secret: expressJwtSecret({
-            cache: true,
-            rateLimit: true,
-            jwksRequestsPerMinute: 5,
-            jwksUri: AUTH_JWKS_URI
-        }),
-        credentialsRequired: true,
-        audience: AUTH_AUDIENCE,
-        issuer: AUTH_TOKEN_ISSUER,
-        algorithms: ['RS256']
-    }));
     app.use('/api', apiRouter);
     app.use(({}, response) => {
         response.status(404).send('Not found.');
@@ -127,6 +127,8 @@ export function createAppServer(
         response.status(status).send(String(error));
     });
     const server = http.createServer(app);
+    // Set to maximum to make "keep-alive" sockets long-lived.
+    server.keepAliveTimeout = Math.pow(2, 31) - 1;
     server.on('upgrade', onUpgrade);
 
     return server;
